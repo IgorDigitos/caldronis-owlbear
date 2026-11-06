@@ -60,22 +60,29 @@ async function render() {
   const minus = el("button", { textContent: "−", ariaLabel: "Diminuir" });
   const plus = el("button", { textContent: "+", ariaLabel: "Aumentar", className: "primary" });
 
-  const sizeButton = el("button", { textContent: "Testar espaço da sala" });
-  const sizeResult = el("p", { className: "muted" });
-  const usage = el("p", { className: "muted" });
-  const keepButton = el("button", { textContent: "Gravar 48 KB e manter" });
+  const sizes = [4, 8, 12, 15, 20, 32];
+  const keepButtons = sizes.map((kb) => el("button", { textContent: `${kb} KB` }));
   const clearButton = el("button", { textContent: "Apagar teste" });
+  const usage = el("p", { className: "ok" });
+  const lastRequest = el("p", { className: "muted" });
+  const LAST_REQUEST_KEY = `${NS}/ultimo-pedido`;
+  const showLastRequest = () => {
+    const saved = readLocal(LAST_REQUEST_KEY);
+    lastRequest.textContent = saved ? `Último pedido neste aparelho: ${saved}.` : "";
+  };
+  showLastRequest();
 
   status.remove();
   app.append(
     el("h2", { textContent: "O espaço persiste?" }),
-    el("div", { className: "row" }, keepButton, clearButton),
-    usage,
     el("p", {
       className: "muted",
       textContent:
-        "Grave 48 KB, recarregue a página e abra em outro aparelho. Se o uso continuar perto de 48 KB, os dados foram salvos de verdade.",
+        "Toque num tamanho, recarregue a página e veja se o uso continua nesse tamanho. Comece pelo menor e vá subindo.",
     }),
+    el("div", { className: "row" }, ...keepButtons, clearButton),
+    usage,
+    lastRequest,
     el("h2", { textContent: "Quem é você" }),
     el(
       "dl",
@@ -95,9 +102,6 @@ async function render() {
       className: "muted",
       textContent: "Mude o número, recarregue a página e veja se ele continua. Todos na sala veem o mesmo valor.",
     }),
-    el("h2", { textContent: "Espaço disponível" }),
-    sizeButton,
-    sizeResult,
   );
 
   const showRoom = (metadata: Record<string, unknown>) => {
@@ -111,18 +115,25 @@ async function render() {
   showRoom(await OBR.room.getMetadata());
   OBR.room.onMetadataChange(showRoom);
 
-  const keep = async (value: string | undefined) => {
-    keepButton.disabled = clearButton.disabled = true;
+  const allButtons = [...keepButtons, clearButton];
+  const keep = async (kb: number | undefined) => {
+    allButtons.forEach((button) => (button.disabled = true));
+    usage.className = "ok";
+    writeLocal(
+      LAST_REQUEST_KEY,
+      `${kb === undefined ? "apagar" : `${kb} KB`} às ${new Date().toLocaleTimeString("pt-BR")}`,
+    );
+    showLastRequest();
     try {
-      await OBR.room.setMetadata({ [SIZE_TEST_KEY]: value });
+      await OBR.room.setMetadata({ [SIZE_TEST_KEY]: kb === undefined ? undefined : "x".repeat(kb * 1024) });
     } catch (error) {
       usage.className = "bad";
       usage.textContent = `Falhou: ${error instanceof Error ? error.message : JSON.stringify(error)}`;
     } finally {
-      keepButton.disabled = clearButton.disabled = false;
+      allButtons.forEach((button) => (button.disabled = false));
     }
   };
-  keepButton.addEventListener("click", () => void keep("x".repeat(48 * 1024)));
+  keepButtons.forEach((button, index) => button.addEventListener("click", () => void keep(sizes[index])));
   clearButton.addEventListener("click", () => void keep(undefined));
 
   const change = async (delta: number) => {
@@ -133,34 +144,6 @@ async function render() {
   minus.addEventListener("click", () => void change(-1));
   plus.addEventListener("click", () => void change(1));
 
-  sizeButton.addEventListener("click", async () => {
-    sizeButton.disabled = true;
-    sizeResult.className = "muted";
-    sizeResult.textContent = "Testando…";
-    let largest = 0;
-    let failure = "";
-    for (const kb of [1, 2, 4, 8, 12, 16, 24, 32, 64]) {
-      try {
-        await OBR.room.setMetadata({ [SIZE_TEST_KEY]: "x".repeat(kb * 1024) });
-        largest = kb;
-      } catch (error) {
-        failure = error instanceof Error ? error.message : JSON.stringify(error);
-        break;
-      }
-    }
-    try {
-      await OBR.room.setMetadata({ [SIZE_TEST_KEY]: undefined });
-    } catch {
-      // Se a limpeza falhar, o próximo teste sobrescreve a mesma chave.
-    }
-    const used = JSON.stringify(await OBR.room.getMetadata()).length;
-    sizeResult.className = failure ? "bad" : "ok";
-    sizeResult.textContent =
-      `Maior gravação aceita: ${largest} KB.` +
-      (failure ? ` Falhou na seguinte: ${failure}` : " Nenhuma falha até 64 KB.") +
-      ` Em uso agora na sala: ${(used / 1024).toFixed(1)} KB.`;
-    sizeButton.disabled = false;
-  });
 }
 
 if (OBR.isAvailable) {
