@@ -68,6 +68,14 @@ async function render() {
 
   status.remove();
   app.append(
+    el("h2", { textContent: "O espaço persiste?" }),
+    el("div", { className: "row" }, keepButton, clearButton),
+    usage,
+    el("p", {
+      className: "muted",
+      textContent:
+        "Grave 48 KB, recarregue a página e abra em outro aparelho. Se o uso continuar perto de 48 KB, os dados foram salvos de verdade.",
+    }),
     el("h2", { textContent: "Quem é você" }),
     el(
       "dl",
@@ -90,14 +98,6 @@ async function render() {
     el("h2", { textContent: "Espaço disponível" }),
     sizeButton,
     sizeResult,
-    el("h2", { textContent: "O espaço persiste?" }),
-    el("div", { className: "row" }, keepButton, clearButton),
-    usage,
-    el("p", {
-      className: "muted",
-      textContent:
-        "Grave 48 KB, recarregue a página e abra em outro aparelho. Se o uso continuar perto de 48 KB, os dados foram salvos de verdade.",
-    }),
   );
 
   const showRoom = (metadata: Record<string, unknown>) => {
