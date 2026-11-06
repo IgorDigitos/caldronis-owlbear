@@ -1,0 +1,22 @@
+{
+  "name": "caldronis-owlbear",
+  "version": "0.0.1",
+  "private": true,
+  "packageManager": "pnpm@12.14.0",
+  "type": "module",
+  "description": "Extensão do Owlbear Rodeo com ficha automática e rolagens no padrão Caldronis Dice.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@owlbear-rodeo/sdk": "3.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}
