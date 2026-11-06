@@ -62,6 +62,9 @@ async function render() {
 
   const sizeButton = el("button", { textContent: "Testar espaço da sala" });
   const sizeResult = el("p", { className: "muted" });
+  const usage = el("p", { className: "muted" });
+  const keepButton = el("button", { textContent: "Gravar 48 KB e manter" });
+  const clearButton = el("button", { textContent: "Apagar teste" });
 
   status.remove();
   app.append(
@@ -87,14 +90,40 @@ async function render() {
     el("h2", { textContent: "Espaço disponível" }),
     sizeButton,
     sizeResult,
+    el("h2", { textContent: "O espaço persiste?" }),
+    el("div", { className: "row" }, keepButton, clearButton),
+    usage,
+    el("p", {
+      className: "muted",
+      textContent:
+        "Grave 48 KB, recarregue a página e abra em outro aparelho. Se o uso continuar perto de 48 KB, os dados foram salvos de verdade.",
+    }),
   );
 
-  const showCounter = (metadata: Record<string, unknown>) => {
+  const showRoom = (metadata: Record<string, unknown>) => {
     const value = metadata[COUNTER_KEY];
     counterValue.textContent = String(typeof value === "number" ? value : 0);
+    const kept = metadata[SIZE_TEST_KEY];
+    usage.textContent =
+      `Em uso na sala: ${(JSON.stringify(metadata).length / 1024).toFixed(1)} KB` +
+      (typeof kept === "string" ? ` (teste mantido: ${(kept.length / 1024).toFixed(0)} KB).` : ".");
   };
-  showCounter(await OBR.room.getMetadata());
-  OBR.room.onMetadataChange(showCounter);
+  showRoom(await OBR.room.getMetadata());
+  OBR.room.onMetadataChange(showRoom);
+
+  const keep = async (value: string | undefined) => {
+    keepButton.disabled = clearButton.disabled = true;
+    try {
+      await OBR.room.setMetadata({ [SIZE_TEST_KEY]: value });
+    } catch (error) {
+      usage.className = "bad";
+      usage.textContent = `Falhou: ${error instanceof Error ? error.message : JSON.stringify(error)}`;
+    } finally {
+      keepButton.disabled = clearButton.disabled = false;
+    }
+  };
+  keepButton.addEventListener("click", () => void keep("x".repeat(48 * 1024)));
+  clearButton.addEventListener("click", () => void keep(undefined));
 
   const change = async (delta: number) => {
     const metadata = await OBR.room.getMetadata();
